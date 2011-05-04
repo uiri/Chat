@@ -1,66 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
-#include <netinet/in.h>
-
-void error(const char *msg) {
-    perror(msg);
-    exit(1);
-}
+#include <netdb.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
-    int sockfd, newsockfd, portno, n;
-    struct sockaddr_in serv_addr, cli_addr;
-    struct hostent *server;
-    socklen_t clilen;
-    char buffer[256];
-    if (argc < /* number of arguments */) {
-        fprintf(stderr,"ERROR, no port provided\n");
-        exit(1);
+  int locsock;
+  int remsock;
+  int local_status;
+  int remote_status;
+  int optstatus;
+  struct addrinfo local, *locinfo;
+  struct addrinfo remote, *reminfo;
+  
+  /* if (argc < 2) {
+       printf(stderr, "too few arguments");
+     } */
+
+  memset(&local, 0, sizeof local);
+  local.ai_family = AF_UNSPEC;
+  local.ai_socktype = SOCK_STREAM;
+  local.ai_flags = AI_PASSIVE;
+
+  memset(&remote, 0, sizeof remote);
+  remote.ai_family = AF_UNSPEC;
+  remote.ai_socktype = SOCK_STREAM;
+
+  if ((local_status = getaddrinfo(NULL, "1337", &local, &locinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(local_status));
+    exit(1);
+  }
+  
+  locsock = socket(locinfo->ai_family, locinfo->ai_socktype, locinfo->ai_protocol);
+  bind(locsock, locinfo->ai_addr, locinfo->ai_addrlen);
+  
+  if ((optstatus = getopt (argc, argv, "c:")) != -1) {
+    switch (optstatus) {
+      case 'c':
+        remote_status = getaddrinfo(argv[1], "1337", &remote, &reminfo);
+        /* remsock = socket(reminfo->ai_family, reminfo->ai_socktype, reminfo->ai_protocol); // this line is segfaulting :(
+           printf("%d\n", remsock);  // this line tests the line above */
     }
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd < 0) 
-        error("ERROR opening socket");
-    portno = atoi(argv[/* argument number for the port. Starts at 1 not 0 */]);
-    server = gethostbyname(argv[/*argument for the server name*/]);
-    if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }
-    memset((char *) &serv_addr, '\0', sizeof(serv_addr));
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = INADDR_ANY;
-    serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *) &serv_addr,
-             sizeof(serv_addr)) < 0) 
-        error("ERROR on binding");
-    listen(sockfd,5);
-    clilen = sizeof(cli_addr);
-    newsockfd = accept(sockfd, 
-                       (struct sockaddr *) &cli_addr, 
-                       &clilen);
-    if (newsockfd < 0) 
-        error("ERROR on accept");
-    if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
-        error("ERROR connecting");
-    memset(buffer, '\0', 256);
-    printf("Please enter the message: ");
-    fgets(buffer,255,stdin);
-    n = write(sockfd,buffer,strlen(buffer));
-    if (n < 0) 
-        error("ERROR writing to socket");
-    memset(buffer, '\0', 256);
-    n = read(newsockfd,buffer,255);
-    if (n < 0) 
-        error("ERROR reading from socket");
-    printf("Here is the message: %s\n",buffer);
-    n = write(newsockfd,"I got your message",18);
-    if (n < 0) 
-        error("ERROR writing to socket");
-    close(newsockfd);
-    close(sockfd);
-    return 0;
+  }
+  
+  freeaddrinfo(locinfo);
+  freeaddrinfo(reminfo);
+  return 0;
 }
