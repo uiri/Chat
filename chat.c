@@ -6,46 +6,71 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#define PORT "1337"
+
 int main(int argc, char *argv[]) {
-  int locsock;
-  int remsock;
-  int local_status;
-  int remote_status;
-  int optstatus;
-  struct addrinfo local, *locinfo;
-  struct addrinfo remote, *reminfo;
-  
-  /* if (argc < 2) {
-       printf(stderr, "too few arguments");
-     } */
+  // declarations
+  int status, sock, acceptsock, clientstatus, connectsock;
+  struct addrinfo hints, *res, *p;
+  struct sockaddr_storage client_addr;
+  char *recv_buffer, *send_buffer;
+  recv_buffer = malloc(256 * sizeof(char));
+  send_buffer = malloc(256 * sizeof(char));
 
-  memset(&local, 0, sizeof local);
-  local.ai_family = AF_UNSPEC;
-  local.ai_socktype = SOCK_STREAM;
-  local.ai_flags = AI_PASSIVE;
+  // populate hints
+  memset(&hints, 0, sizeof hints);
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_flags = AI_PASSIVE;
 
-  memset(&remote, 0, sizeof remote);
-  remote.ai_family = AF_UNSPEC;
-  remote.ai_socktype = SOCK_STREAM;
-
-  if ((local_status = getaddrinfo(NULL, "1337", &local, &locinfo)) != 0) {
-    fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(local_status));
+  // make sure retrieving address info works
+  if ((status = getaddrinfo(NULL, PORT, &hints, &servinfo)) != 0) {
+    fprintf(stderr, "getaddrinfo for server error: %s\n", gai_strerror(status));
     exit(1);
   }
   
-  locsock = socket(locinfo->ai_family, locinfo->ai_socktype, locinfo->ai_protocol);
-  bind(locsock, locinfo->ai_addr, locinfo->ai_addrlen);
-  
-  if ((optstatus = getopt (argc, argv, "c:")) != -1) {
-    switch (optstatus) {
-      case 'c':
-        remote_status = getaddrinfo(argv[1], "1337", &remote, &reminfo);
-        /* remsock = socket(reminfo->ai_family, reminfo->ai_socktype, reminfo->ai_protocol); // this line is segfaulting :(
-           printf("%d\n", remsock);  // this line tests the line above */
+  for(p = servinfo; p != NULL; p = p->ai_next) {
+    if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
+      perror("server: socket");
+      continue;
     }
+    
+    if (bind(sock, p->ai_addr, p->ai_addrlen) < 0) {
+      perror("server: bind");
+      continue;
+    }
+    
+    break;
   }
+
+  listen(sock, 10);
+
+   if ((optstatus = getopt (argc, argv, "c:")) != -1) {
+        switch (optstatus) {
+          case 'c':
+            if ((clientstatus = getaddrinfo(argv[1], "1337", &hints, &servinfo)) != 0) {
+              fprintf(stderr, "getaddrinfo for client error: %s\n", gai_strerror(clientstatus));
+              exit(1);
+            }
+            for(p = servinfo; p != NULL; p = p->ai_next) {
+              if ((connectsock = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) {
+                perror("client: socket");
+                continue;
+              }
+              
+              if (connect(connectsock, p->ai_addr, p->ai_addrlen) < 0) {
+                perror ("client: connect");
+                continue;
+              }
+              
+              break;
+            }
+            send();
+        }
+      }
+
+  acceptsock = accept(sock,(struct sockaddr *)&client_addr, &addr_size);
   
-  freeaddrinfo(locinfo);
-  freeaddrinfo(reminfo);
+  freeaddrinfo(servinfo);
   return 0;
 }

@@ -7,7 +7,6 @@
 #include <netdb.h>
 
 #define PORT "10234"
-#define BUFFER_LENGTH 256
 
 int main(void) {
 	
