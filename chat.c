@@ -10,8 +10,9 @@
 
 int main(int argc, char *argv[]) {
   // declarations
-  int status, sock, acceptsock, clientstatus, connectsock;
-  struct addrinfo hints, *res, *p;
+  int status, sock, acceptsock, clientstatus, connectsock, optstatus;
+  socklen_t addr_size;
+  struct addrinfo hints, *servinfo, *p;
   struct sockaddr_storage client_addr;
   char *recv_buffer, *send_buffer;
   recv_buffer = malloc(256 * sizeof(char));
@@ -48,7 +49,7 @@ int main(int argc, char *argv[]) {
    if ((optstatus = getopt (argc, argv, "c:")) != -1) {
         switch (optstatus) {
           case 'c':
-            if ((clientstatus = getaddrinfo(argv[1], "1337", &hints, &servinfo)) != 0) {
+            if ((clientstatus = getaddrinfo("10.103.162.152", "1337", &hints, &servinfo)) != 0) {
               fprintf(stderr, "getaddrinfo for client error: %s\n", gai_strerror(clientstatus));
               exit(1);
             }
@@ -65,12 +66,19 @@ int main(int argc, char *argv[]) {
               
               break;
             }
-            send();
         }
       }
 
   acceptsock = accept(sock,(struct sockaddr *)&client_addr, &addr_size);
   
+  while (send_buffer[0] != "/") {
+    gets(send_buffer);
+    strcat(send_buffer, "\0");
+    send(connectsock, send_buffer, 256, 0);
+    recv(connectsock, recv_buffer, 256, 0);
+    printf("%s\n", recv_buffer);
+  }
+
   freeaddrinfo(servinfo);
   return 0;
 }
