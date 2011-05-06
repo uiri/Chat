@@ -13,15 +13,15 @@ int main(void) {
 	struct sockaddr_storage client_addr;
 	socklen_t addr_size;
 	struct addrinfo hints, *res;
-	int sock, client_sock;
+	int sock, client_sock, quit;
+	char first;
 
 	char *buffer;
 	buffer = malloc(256 * sizeof(char));
 	char *recv_buffer;
 	recv_buffer = malloc(256 * sizeof(char));
 
-	gets(buffer);
-	strcat(buffer, "\0");
+	scanf("%s\0", buffer);
 
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
@@ -30,12 +30,23 @@ int main(void) {
 	
 	sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	connect(sock, res->ai_addr, res->ai_addrlen);
-	send(sock, buffer, 256, 0);
 
-	recv(sock, recv_buffer, 256, 0);
-	printf("Recieved echo: %s\n",recv_buffer);
+	first = *buffer;
+	quit = (int)first;
+	
+	while (quit != 1) {
+	  printf("send 1 to quit");
+	  send(sock, buffer, 256, 0);
+	  scanf("%s\0", buffer);
+	  first = *buffer;
+	  quit = (int)first;
+	  recv(sock, recv_buffer, 256, 0);
+	  //printf("Recieved echo: %s\n",recv_buffer);
+	}
 
 	freeaddrinfo(res);
-	close(sock); 
+	close(sock);
+	free(buffer);
+	free(recv_buffer);
 	return 0;
 }
