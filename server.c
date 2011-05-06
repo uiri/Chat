@@ -33,7 +33,7 @@ int main(void) {
 	
 	recv(client_sock, recv_buffer, 256, 0);
 	printf("Recieved: %s\nEchoing to client\n",recv_buffer);
-	send(sock, recv_buffer, 256, 0);
+	send(client_sock, recv_buffer, 256, 0);
 
 	close(sock); 
 	return 0;
