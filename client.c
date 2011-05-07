@@ -5,6 +5,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <regex.h>
 
 #define PORT "10234"
 
@@ -13,14 +14,15 @@ int main(void) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
-  int sock, client_sock, quit, recvstat;
+  int sock, client_sock, a, c=2;
+  char quit[3]="n";
   int buffer_size = 250;
-  
+
   char *buffer;
   buffer = malloc(256 * sizeof(char));
   char *recv_buffer;
   recv_buffer = malloc(256 * sizeof(char));
-  
+
   printf("First message:");
   fgets(buffer, 250, stdin);
 
@@ -32,14 +34,13 @@ int main(void) {
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   connect(sock, res->ai_addr, res->ai_addrlen);
   
-  while (quit != 1) {
+  while (quit != "y") {
     send(sock, buffer, 256, 0);
     recv(sock, recv_buffer, 256, 0);
     printf("%sSay:", recv_buffer);
     fgets(buffer, 250, stdin);
-    if (buffer[0] == "/") {
-      quit=1;
-    }
+    a = (int)(strchr(buffer, c) - *buffer);
+    printf("%d", a);
   }
 
   freeaddrinfo(res);
