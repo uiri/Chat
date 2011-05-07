@@ -9,12 +9,18 @@
 
 #define PORT "10234"
 
-int main(void) {
+int main(int argc, char *argv[]) {
   //declarations
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
   int sock, client_sock, quit;
+
+  //check for an argument
+  if (argc != 2) {
+    fprintf(stderr, "Error: Wrong number of arguments. Usage: ./client $IP_ADDRESS");
+    exit(1);
+  }
 
   //set up buffers
   char *buffer;
@@ -32,7 +38,7 @@ int main(void) {
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  getaddrinfo("127.0.0.1", PORT, &hints, &res);
+  getaddrinfo(argv[1], PORT, &hints, &res);
   
   // create and connect to a socket
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);

@@ -32,7 +32,7 @@ int main(void) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
-  getaddrinfo("127.0.0.1", PORT, &hints, &res);
+  getaddrinfo(NULL, PORT, &hints, &res);
   
   //create the socket, bind to it, listen on it, accept when it is connected to
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
