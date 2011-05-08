@@ -17,8 +17,8 @@ int main(int argc, char *argv[]) {
   int sock, client_sock, quit, recvstat;
 
   //check for an argument
-  if (argc != 2) {
-    fprintf(stderr, "Error: Wrong number of arguments. Usage: ./client $IP_ADDRESS");
+  if (argc != 3) {
+    fprintf(stderr, "Error: Wrong number of arguments. Usage: ./client $IP_ADDRESS $PORT");
     exit(1);
   }
 
@@ -39,18 +39,16 @@ int main(int argc, char *argv[]) {
   memset(&hints, 0, sizeof hints);
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  getaddrinfo(argv[1], PORT, &hints, &res);
+  getaddrinfo(argv[1], argv[2], &hints, &res);
   
   // create and connect to a socket
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   connect(sock, res->ai_addr, res->ai_addrlen);
   
-  /* until SIGINT, send the message to be sent, receive the message to be received
-     print out the received message, and get a new message to send */
   while (quit != 1) {
     send(sock, buffer, 256, 0);
-    recvstat = recv(sock, recv_buffer, 256, 0);
-    if (recvstat == 1) quit = 1;
+    recv(sock, recv_buffer, 256, 0);
+    if ((strlen(recv_buffer)) == 1) quit = 1;
     printf("%sSay:", recv_buffer);
     fgets(buffer, 250, stdin);
     quit = strlen(buffer);

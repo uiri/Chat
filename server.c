@@ -6,14 +6,18 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#define PORT "10234"
-
-int main(void) {
+int main(int argc, char *argv[]) {
   //declarations
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
   int sock, client_sock, quit, recvstat;
+
+  //check for an argument
+  if (argc != 2) {
+    fprintf(stderr, "Error: Wrong number of arguments. Usage: ./server $PORT");
+    exit(1);
+  }
 
   //set up buffers
   char *recv_buffer;
@@ -33,7 +37,7 @@ int main(void) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   hints.ai_flags = AI_PASSIVE;
-  getaddrinfo(NULL, PORT, &hints, &res);
+  getaddrinfo(NULL, argv[1], &hints, &res);
   
   //create the socket, bind to it, listen on it, accept when it is connected to
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
@@ -41,12 +45,11 @@ int main(void) {
   listen(sock, 10);
   client_sock = accept(sock,(struct sockaddr *)&client_addr, &addr_size);
   
-  /* until SIGINT, send the message to be sent, receive the message to be received
-     print out the received message, and get a new message to send */
+  
   while (quit != 1) {
     send(client_sock, buffer, 256, 0);
-    recvstat = recv(client_sock, recv_buffer, 256, 0);
-    if (recvstat == 1) quit = 1;
+    recv(client_sock, recv_buffer, 256, 0);
+    if ((strlen(recv_buffer)) == 1) quit = 1;
     printf("%sSay:", recv_buffer);
     fgets(buffer, 250, stdin);
     quit = strlen(buffer);
