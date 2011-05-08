@@ -13,7 +13,7 @@ int main(void) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
-  int sock, client_sock, quit;
+  int sock, client_sock, quit, recvstat;
 
   //set up buffers
   char *recv_buffer;
@@ -24,8 +24,9 @@ int main(void) {
   /*give an initial message to send.
     we could potentially turn this into an auth handshake so
     that people are talking to who they think they're talking to */
-  printf("First message:");
+  printf("At any time you can send a blank message to terminate the program\nFirst message:");
   fgets(buffer, 250, stdin);
+  quit = strlen(buffer);
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof(hints));
@@ -44,9 +45,11 @@ int main(void) {
      print out the received message, and get a new message to send */
   while (quit != 1) {
     send(client_sock, buffer, 256, 0);
-    recv(client_sock, recv_buffer, 256, 0);
+    recvstat = recv(client_sock, recv_buffer, 256, 0);
+    if (recvstat == 1) quit = 1;
     printf("%sSay:", recv_buffer);
     fgets(buffer, 250, stdin);
+    quit = strlen(buffer);
   }
   
   //free some stuff up so it closes neatly...

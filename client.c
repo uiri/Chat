@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
-  int sock, client_sock, quit;
+  int sock, client_sock, quit, recvstat;
 
   //check for an argument
   if (argc != 2) {
@@ -31,8 +31,9 @@ int main(int argc, char *argv[]) {
   /* get an initial message to send
      see the comment at this bit in server.c 
      for an idea of what to do with it later */
-  printf("First message:");
+  printf("At any time you can send a blank message to terminate the program\nFirst message:");
   fgets(buffer, 250, stdin);
+  quit = strlen(buffer);
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof hints);
@@ -48,12 +49,14 @@ int main(int argc, char *argv[]) {
      print out the received message, and get a new message to send */
   while (quit != 1) {
     send(sock, buffer, 256, 0);
-    recv(sock, recv_buffer, 256, 0);
+    recvstat = recv(sock, recv_buffer, 256, 0);
+    if (recvstat == 1) quit = 1;
     printf("%sSay:", recv_buffer);
     fgets(buffer, 250, stdin);
+    quit = strlen(buffer);
   }
 
-  //free some stuff up so it closes neatly...
+  //free some stuff up so it closes neatxly...
   freeaddrinfo(res);
   close(sock);
   free(buffer);
