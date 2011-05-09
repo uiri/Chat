@@ -27,13 +27,19 @@ int main(int argc, char *argv[]) {
   buffer = malloc(256 * sizeof(char));
   char *recv_buffer;
   recv_buffer = malloc(256 * sizeof(char));
+  char *name;
+  name = malloc(32 * sizeof(char));
+  char *recv_name;
+  recv_name = malloc(32 * sizeof(char));
 
   /* get an initial message to send
      see the comment at this bit in server.c 
      for an idea of what to do with it later */
-  printf("At any time you can send a blank message to terminate the program\nFirst message:");
+  printf("At any time you can send a blank message to terminate the program\nName:");
+  gets(name);
+  printf("%s: ", name);
   fgets(buffer, 250, stdin);
-  quit = strlen(buffer);
+  strcat(name, ": ");
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof hints);
@@ -45,16 +51,21 @@ int main(int argc, char *argv[]) {
   sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
   connect(sock, res->ai_addr, res->ai_addrlen);
   
-  while (quit != 1) {
+  send(sock, name, 32, 0);
+  recv(sock, recv_name, 32, 0);
+
+  while ((strcmp(buffer, "/quit\n")) != 0) {
     send(sock, buffer, 256, 0);
     recv(sock, recv_buffer, 256, 0);
-    if ((strlen(recv_buffer)) == 1) quit = 1;
-    printf("%sSay:", recv_buffer);
+    if ((strcmp(recv_buffer, "/quit\n")) == 0) 
+      break;
+    printf("%s%s%s", recv_name, recv_buffer, name);
     fgets(buffer, 250, stdin);
-    quit = strlen(buffer);
   }
 
-  //free some stuff up so it closes neatxly...
+  send(sock, buffer, 256, 0);
+
+  //free some stuff up so it closes neatly...
   freeaddrinfo(res);
   close(sock);
   free(buffer);

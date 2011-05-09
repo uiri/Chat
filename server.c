@@ -24,13 +24,19 @@ int main(int argc, char *argv[]) {
   recv_buffer = malloc(256 * sizeof(char));
   char *buffer;
   buffer = malloc(256 * sizeof(char));
-  
+  char *name;
+  name = malloc(32 * sizeof(char));
+  char *recv_name;
+  recv_name = malloc(32 * sizeof(char));
+
   /*give an initial message to send.
     we could potentially turn this into an auth handshake so
     that people are talking to who they think they're talking to */
-  printf("At any time you can send a blank message to terminate the program\nFirst message:");
+  printf("Send /quit in order to terminate the program but give a name first.\nName:");
+  gets(name);
+  printf("%s: ", name);
   fgets(buffer, 250, stdin);
-  quit = strlen(buffer);
+  strcat(name, ": ");
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof(hints));
@@ -44,17 +50,21 @@ int main(int argc, char *argv[]) {
   bind(sock,res->ai_addr,res->ai_addrlen);
   listen(sock, 10);
   client_sock = accept(sock,(struct sockaddr *)&client_addr, &addr_size);
-  
-  
-  while (quit != 1) {
+
+  send(client_sock, name, 32, 0);
+  recv(client_sock, recv_name, 32, 0);
+
+  while ((strcmp(buffer, "/quit\n")) != 0) {
     send(client_sock, buffer, 256, 0);
     recv(client_sock, recv_buffer, 256, 0);
-    if ((strlen(recv_buffer)) == 1) quit = 1;
-    printf("%sSay:", recv_buffer);
+    if ((strcmp(recv_buffer, "/quit\n")) == 0) 
+      break;
+    printf("%s%s%s", recv_name, recv_buffer, name);
     fgets(buffer, 250, stdin);
-    quit = strlen(buffer);
   }
-  
+
+  send(client_sock, buffer, 256, 0);
+
   //free some stuff up so it closes neatly...
   freeaddrinfo(res);
   close(sock); 
