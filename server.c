@@ -11,7 +11,10 @@ int main(int argc, char *argv[]) {
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
-  int sock, client_sock, quit, recvstat;
+  int sock, client_sock;
+  size_t mematch;
+  
+  mematch = (3 * sizeof(char));
 
   //check for an argument
   if (argc != 2) {
@@ -28,6 +31,8 @@ int main(int argc, char *argv[]) {
   name = malloc(32 * sizeof(char));
   char *recv_name;
   recv_name = malloc(32 * sizeof(char));
+  char *mebuffer;
+  mebuffer = malloc(256 * sizeof(char));
 
   /*give an initial message to send.
     we could potentially turn this into an auth handshake so
@@ -36,7 +41,6 @@ int main(int argc, char *argv[]) {
   gets(name);
   printf("%s: ", name);
   fgets(buffer, 250, stdin);
-  strcat(name, ": ");
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof(hints));
@@ -53,13 +57,20 @@ int main(int argc, char *argv[]) {
 
   send(client_sock, name, 32, 0);
   recv(client_sock, recv_name, 32, 0);
+  printf("Now talking to %s\n", recv_name);
 
   while ((strcmp(buffer, "/quit\n")) != 0) {
     send(client_sock, buffer, 256, 0);
     recv(client_sock, recv_buffer, 256, 0);
     if ((strcmp(recv_buffer, "/quit\n")) == 0) 
       break;
-    printf("%s%s%s", recv_name, recv_buffer, name);
+    if ((strncmp(recv_buffer, "/me", mematch)) == 0) {
+      mebuffer = strtok(recv_buffer, " ");
+      mebuffer = strtok(NULL, "");
+      printf("*%s %s%s: ", recv_name, mebuffer, name);
+    } else {
+      printf("%s: %s%s: ", recv_name, recv_buffer, name);
+    }
     fgets(buffer, 250, stdin);
   }
 

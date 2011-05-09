@@ -5,16 +5,16 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <regex.h>
-
-#define PORT "10234"
 
 int main(int argc, char *argv[]) {
   //declarations
   struct sockaddr_storage client_addr;
   socklen_t addr_size;
   struct addrinfo hints, *res;
-  int sock, client_sock, quit, recvstat;
+  int sock, client_sock;
+  size_t mematch;
+
+  mematch = (3 * sizeof(char));
 
   //check for an argument
   if (argc != 3) {
@@ -31,15 +31,16 @@ int main(int argc, char *argv[]) {
   name = malloc(32 * sizeof(char));
   char *recv_name;
   recv_name = malloc(32 * sizeof(char));
+  char *mebuffer;
+  mebuffer = malloc(256 * sizeof(char));
 
   /* get an initial message to send
      see the comment at this bit in server.c 
      for an idea of what to do with it later */
-  printf("At any time you can send a blank message to terminate the program\nName:");
+  printf("Send /quit to terminate the program but give a name first.\nName:");
   gets(name);
   printf("%s: ", name);
   fgets(buffer, 250, stdin);
-  strcat(name, ": ");
 
   // blank out hints and fill it out with info about the machine
   memset(&hints, 0, sizeof hints);
@@ -53,13 +54,20 @@ int main(int argc, char *argv[]) {
   
   send(sock, name, 32, 0);
   recv(sock, recv_name, 32, 0);
+  printf("Now talking to %s\n", recv_name);
 
   while ((strcmp(buffer, "/quit\n")) != 0) {
     send(sock, buffer, 256, 0);
     recv(sock, recv_buffer, 256, 0);
     if ((strcmp(recv_buffer, "/quit\n")) == 0) 
       break;
-    printf("%s%s%s", recv_name, recv_buffer, name);
+    if ((strncmp(recv_buffer, "/me", mematch)) == 0) {
+      mebuffer = strtok(recv_buffer, " ");
+      mebuffer = strtok(NULL, "");
+      printf("*%s %s%s: ", recv_name, mebuffer, name);
+    } else {
+      printf("%s: %s%s: ", recv_name, recv_buffer, name);
+    }
     fgets(buffer, 250, stdin);
   }
 
