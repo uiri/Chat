@@ -66,24 +66,30 @@ int main(int argc, char *argv[]) {
   while (chatval != 0) {
     close(client_sock);
     if (chatval == 1) {
-      printf("%s", name);
-      fgets(buffer, 250, stdin);
       if (listencount == 0) {
+        freeaddrinfo(res);
+        hints.ai_flags = AI_PASSIVE;
+        getaddrinfo(NULL, argv[1], &hints, &res);
         client_sock = server(sock, res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen, backlog, client_addr, addr_size);
         listencount = 1;
       } else {
         client_sock = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
       }
-    } else if (chatval == 2) {
+    } else {
+      freeaddrinfo(res);
       printf("IP ADDRESS:");
       gets(ip);
       printf("PORT:");
       gets(port);
       getaddrinfo(ip, port, &hints, &res);
-      client_sock = client(res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen);
-    } else {
-      printf("Something has gone horribly wrong\n");
+      if (clientcount == 0) {
+        client_sock = client(res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen);
+      } else {
+        connect(client_sock, res->ai_addr, res->ai_addrlen);
+      }
     }
+    printf("%s: ", name);
+    fgets(buffer, 250, stdin);
     chatval = chat(client_sock, name, recv_name, buffer, recv_buffer);
   }
 
