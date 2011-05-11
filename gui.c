@@ -4,7 +4,15 @@ static void delete(GtkWidget *widget, gpointer data) {
   gtk_main_quit();
 }
 
-static void gui(GtkWidget *widget, GtkWidget *initwindow, gchar *name, gchar *first, gpointer data) {
+static void hide(GtkWidget *widget, GtkWidget *initwindow, gpointer data) {
+  gtk_widget_hide(initwindow);  
+}
+
+static int chat (GtkWidget *widget, GtkTextBuffer *mainbuffer, gpointer data) {
+  
+}
+
+static void gui(GtkWidget *widget, gchar *name, gpointer data) {
   GtkWidget *mainwindow, *mainbox, *mainscroll,
     *mainview, *mainhbox, *mainmessage, *mainbutton;
   GtkTextBuffer *mainbuffer;
@@ -12,10 +20,11 @@ static void gui(GtkWidget *widget, GtkWidget *initwindow, gchar *name, gchar *fi
   gchar *bufferchar;
   gint bufferlen;
   gboolean tru, lie;
+  int sendstat;
   tru = TRUE;
   lie = FALSE;
+  sendstat = 0;
 
-  gtk_widget_hide(initwindow);
   mainwindow = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   g_signal_connect(mainwindow, "destroy", G_CALLBACK (delete), NULL);
   gtk_window_set_default_size(GTK_WINDOW (mainwindow), 200, 200);
@@ -41,8 +50,7 @@ static void gui(GtkWidget *widget, GtkWidget *initwindow, gchar *name, gchar *fi
   gtk_container_add(GTK_CONTAINER (mainscroll), mainview);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (mainscroll), 1, 1);
 
-  bufferchar = g_strconcat(name, first, "\n", NULL);
-  gtk_text_buffer_insert(mainbuffer, mainiter, bufferchar, GINT (bufferlen));
+  g_signal_connect(mainbutton, "chat",
 
   gtk_widget_show_all(mainwindow);
 }
@@ -50,12 +58,11 @@ static void gui(GtkWidget *widget, GtkWidget *initwindow, gchar *name, gchar *fi
 int main(int argc, char *argv[]) {
   GtkWidget *initwindow, *initbox,
     *namebox, *namelabel, *nameentry,
-    *firstbox, *firstlabel, *firstentry,
     *buttonbox, *initbutton;
   gboolean tru, lie;
   tru = TRUE;
   lie = FALSE;
-  gchar *name, *buffer;
+  gchar *name;
   
   gtk_init(&argc, &argv);
 
@@ -70,12 +77,6 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start(GTK_BOX (namebox), namelabel, lie, tru, 0);
   gtk_box_pack_start(GTK_BOX (namebox), nameentry, tru, tru, 0);
 
-  firstbox = gtk_hbox_new(tru, 2);
-  firstlabel = gtk_label_new("First message: ");
-  firstentry = gtk_entry_new();
-  gtk_box_pack_start(GTK_BOX (firstbox), firstlabel, lie, tru, 0);
-  gtk_box_pack_start(GTK_BOX (firstbox), firstentry, tru, tru, 0);
-
   buttonbox = gtk_hbox_new(tru, 2);
   initbutton = gtk_button_new_with_label("CONNECT!");
   gtk_box_pack_start(GTK_BOX (buttonbox), initbutton, tru, tru, 0);
@@ -84,8 +85,8 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start(GTK_BOX (initbox), buttonbox, tru, tru, 0);
 
   name = gtk_entry_get_text(GTK_ENTRY (nameentry));
-  buffer = gtk_entry_get_text(GTK_ENTRY (firstentry));
-  g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), guiarray, initwindow, name, buffer);
+  g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), name);
+  g_signal_connect(initbutton, "clicked", G_CALLBACK (hide), initwindow);
 
   gtk_widget_show_all(initwindow);
   gtk_main();
