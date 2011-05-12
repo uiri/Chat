@@ -8,9 +8,11 @@ static void hide(GtkWidget *widget, GtkWidget *initwindow, gpointer data) {
   gtk_widget_hide(initwindow);  
 }
 
-static int chat (GtkWidget *widget, GtkTextBuffer *mainbuffer, gpointer data) {
+static int chat (GtkWidget *widget, GtkWidget *array[3], gpointer data) {
   gchar *text;
   GtkTextIter start, end;
+  GtkTextBuffer *mainbuffer;
+  mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(array[3]));
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &start, 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &end, -1);
   text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &start, &end, TRUE), "hello world\n", NULL);
@@ -18,8 +20,8 @@ static int chat (GtkWidget *widget, GtkTextBuffer *mainbuffer, gpointer data) {
 }
 
 static void gui(GtkWidget *widget, gchar *name, gpointer data) {
-  GtkWidget *mainwindow, *mainbox, *mainscroll,
-    *mainview, *mainhbox, *mainmessage, *mainbutton;
+  GtkWidget *mainwindow, *mainbox, *mainscroll, *mainbutton, *mainhbox,
+    *mainview, *mainmessage, *mainarray[3];
   GtkTextBuffer *mainbuffer;
   gchar *bufferchar;
   gint bufferlen;
@@ -54,7 +56,9 @@ static void gui(GtkWidget *widget, gchar *name, gpointer data) {
   gtk_container_add(GTK_CONTAINER (mainscroll), mainview);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (mainscroll), 1, 1);
 
-  g_signal_connect(mainbutton, "clicked", G_CALLBACK (chat), mainbuffer);
+  mainarray[0] = mainview;
+  mainarray[1] = mainmessage;
+  g_signal_connect(mainbutton, "clicked", G_CALLBACK (chat), mainarray);
 
   gtk_widget_show_all(mainwindow);
 }
