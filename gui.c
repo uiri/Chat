@@ -22,6 +22,27 @@ static void delete(GtkWidget *widget, gpointer data) {
   gtk_main_quit();
 }
 
+static int client(int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen) {
+  int returnvalue;
+  returnvalue = socket(domain, type, protocol);
+  connect(returnvalue, serv_addr, addrlen);
+  return returnvalue;
+}
+
+static int server(int sock, int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen, int backlog, struct sockaddr_storage client_addr, socklen_t addr_size) {
+  int returnvalue;
+  sock = socket(domain, type, protocol);
+  bind(sock, serv_addr, addrlen);
+  listen(sock, backlog);
+  addr_size = sizeof client_addr;
+  returnvalue = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
+  return returnvalue;
+}
+
+static gboolean recvdata (GIOChannel *clientio, GIOCondition G_IO_IN, GList *list, gpointer data) {
+  printf("recvdata called\n");
+} 
+
 static int chat (GtkWidget *widget, GList *list, gpointer data) {
   gchar *text, *message;
   gdouble clamp;
@@ -44,21 +65,25 @@ static int chat (GtkWidget *widget, GList *list, gpointer data) {
 }
 
 static void servertog(GtkWidget *widget, GList *radiolist, gpointer data) {
-
+  int clientcount;
+  clientcount=(int)g_list_nth_data(radiolist, 1);
+  printf("%d", clientcount);
 }
 
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   GtkWidget *mainwindow, *mainbox, *mainscroll, *mainbutton, *mainhbox, *mainview, *mainmessage, *mainlabel;
   GtkTextBuffer *mainbuffer;
   GtkAdjustment *vertadjust;
+  GIOChannel *clientio;
   GList *mainlist;
   gboolean tru, lie;
-  int sendstat, clientcount;
+  int sendstat, clientcount, backlog;
+  backlog=10;
   clientcount=(int)g_list_nth_data(initlist, 4);
   mainlist=NULL;
   tru = TRUE;
   lie = FALSE;
-  char *port, *ip;
+  const gchar *port, *ip;
   port = malloc(10 * sizeof(char));
   ip = malloc(20 * sizeof(char));
   const gchar *first;
@@ -76,8 +101,6 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   struct addrinfo hints, *res;
   int sock, client_sock, listencount;
 
-  /* Put in something to determine client or server */
-
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
@@ -89,7 +112,16 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
     getaddrinfo(NULL, port, &hints, &res);
   }
 
+  if (clientcount == 1) {
+    client_sock = client(res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen);
+    listencount = 0;
+  } else {
+    client_sock = server(sock, res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen, backlog, client_addr, addr_size);
+    listencount = 1;
+  }
   
+  clientio = g_io_channel_unix_new(client_sock);
+  g_io_add_watch(clientio, G_IO_IN, recvdata, mainbuffer);
 
   /* Back to your regularly scheduled GUI stuff */
 
@@ -205,28 +237,11 @@ int main(int argc, char *argv[]) {
   initlist = g_list_append(initlist, ipentry);
   g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), initlist);
 
-  /*radiolist = g_list_append*/
-
-  g_signal_connect(serverradio, "toggled", G_CALLBACK (servertog), clientcount);
+  radiolist = g_list_append(radiolist, ipbox);
+  radiolist = g_list_append(radiolist, clientcount);
+  g_signal_connect(serverradio, "toggled", G_CALLBACK (servertog), radiolist);
 
   gtk_widget_show_all(initwindow);
   gtk_main();
   return 0;
-}
-
-static int client(int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen) {
-  int returnvalue;
-  returnvalue = socket(domain, type, protocol);
-  connect(returnvalue, serv_addr, addrlen);
-  return returnvalue;
-}
-
-static int server(int sock, int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen, int backlog, struct sockaddr_storage client_addr, socklen_t addr_size) {
-  int returnvalue;
-  sock = socket(domain, type, protocol);
-  bind(sock, serv_addr, addrlen);
-  listen(sock, backlog);
-  addr_size = sizeof client_addr;
-  returnvalue = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
-  return returnvalue;
 }
