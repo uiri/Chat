@@ -1,39 +1,102 @@
+/*This file is part of UI Chat.
+
+UI Chat is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+UI is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with UI.  If not, see <http://www.gnu.org/licenses/>. */
+
 #include <gtk/gtk.h>
+#include <netdb.h>
+#include <string.h>
+#include <stdlib.h>
 
 static void delete(GtkWidget *widget, gpointer data) {
   gtk_main_quit();
 }
 
-static void hide(GtkWidget *widget, GtkWidget *initwindow, gpointer data) {
-  gtk_widget_hide(initwindow);  
-}
-
-static int chat (GtkWidget *widget, GtkWidget *array[3], gpointer data) {
-  gchar *text;
-  GtkTextIter start, end;
+static int chat (GtkWidget *widget, GList *list, gpointer data) {
+  gchar *text, *message;
+  gdouble clamp;
+  GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
-  mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(array[3]));
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &start, 0);
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &end, -1);
-  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &start, &end, TRUE), "hello world\n", NULL);
+
+  mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
+
+  message = g_strconcat( gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1))),": ",
+                         gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(list, 2))), "\n", NULL);
+
+  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
+  gtk_entry_set_text(GTK_ENTRY(g_list_nth_data(list, 2)), "");
   gtk_text_buffer_set_text(mainbuffer, text, -1);
+
+  clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
+  gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
 }
 
-static void gui(GtkWidget *widget, gchar *name, gpointer data) {
-  GtkWidget *mainwindow, *mainbox, *mainscroll, *mainbutton, *mainhbox,
-    *mainview, *mainmessage, *mainarray[3];
+static void servertog(GtkWidget *widget, GList *radiolist, gpointer data) {
+
+}
+
+static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
+  GtkWidget *mainwindow, *mainbox, *mainscroll, *mainbutton, *mainhbox, *mainview, *mainmessage, *mainlabel;
   GtkTextBuffer *mainbuffer;
-  gchar *bufferchar;
-  gint bufferlen;
+  GtkAdjustment *vertadjust;
+  GList *mainlist;
   gboolean tru, lie;
-  int sendstat;
+  int sendstat, clientcount;
+  clientcount=(int)g_list_nth_data(initlist, 4);
+  mainlist=NULL;
   tru = TRUE;
   lie = FALSE;
+  char *port, *ip;
+  port = malloc(10 * sizeof(char));
+  ip = malloc(20 * sizeof(char));
+  const gchar *first;
   sendstat = 0;
+  first = g_strconcat(gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 1))), ": ", gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 2))),
+                      "\n", NULL);
+  port = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 3)));
+  if (clientcount == 0) 
+    ip = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 5)));
 
+  /* Begin Berkeley Socket Stuff */
+
+  struct sockaddr_storage client_addr;
+  socklen_t addr_size;
+  struct addrinfo hints, *res;
+  int sock, client_sock, listencount;
+
+  /* Put in something to determine client or server */
+
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family = AF_UNSPEC;
+  hints.ai_socktype = SOCK_STREAM;
+  if (clientcount == 1) {
+    printf("clientcount is 1");
+    getaddrinfo( ip, port, &hints, &res);
+  } else {
+    hints.ai_flags = AI_PASSIVE;
+    getaddrinfo(NULL, port, &hints, &res);
+  }
+
+  
+
+  /* Back to your regularly scheduled GUI stuff */
+
+  gtk_widget_hide(g_list_nth_data(initlist, 0));
   mainwindow = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   g_signal_connect(mainwindow, "destroy", G_CALLBACK (delete), NULL);
-  gtk_window_set_default_size(GTK_WINDOW (mainwindow), 200, 200);
+  gtk_window_set_default_size(GTK_WINDOW (mainwindow), 400, 400);
   gtk_window_set_title(GTK_WINDOW (mainwindow), "UI Chat");
   gtk_widget_show(mainwindow);
 
@@ -42,12 +105,15 @@ static void gui(GtkWidget *widget, gchar *name, gpointer data) {
   mainscroll = gtk_scrolled_window_new(NULL, NULL);
   mainbuffer = gtk_text_buffer_new(NULL);
   mainview = gtk_text_view_new_with_buffer(mainbuffer);
+  mainlabel = gtk_label_new(gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 1))));
   mainmessage = gtk_entry_new();
   mainbutton = gtk_button_new_with_label("Send");
+  vertadjust = gtk_scrolled_window_get_vadjustment(GTK_SCROLLED_WINDOW(mainscroll));
 
   gtk_container_add(GTK_CONTAINER (mainwindow), mainbox);
   gtk_box_pack_start(GTK_BOX (mainbox), mainscroll, tru, tru, 0);
   gtk_box_pack_start(GTK_BOX (mainbox), mainhbox, lie, lie, 0);
+  gtk_box_pack_start(GTK_BOX (mainhbox), mainlabel, lie, lie, 0);
   gtk_box_pack_start(GTK_BOX (mainhbox), mainmessage, tru, tru, 0);
   gtk_box_pack_start(GTK_BOX (mainhbox), mainbutton, lie, lie, 0);
   
@@ -55,10 +121,13 @@ static void gui(GtkWidget *widget, gchar *name, gpointer data) {
   gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW (mainview), GTK_WRAP_WORD_CHAR);
   gtk_container_add(GTK_CONTAINER (mainscroll), mainview);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (mainscroll), 1, 1);
+  gtk_text_buffer_set_text(mainbuffer, first, -1);
 
-  mainarray[0] = mainview;
-  mainarray[1] = mainmessage;
-  g_signal_connect(mainbutton, "clicked", G_CALLBACK (chat), mainarray);
+  mainlist = g_list_append(mainlist, mainview);
+  mainlist = g_list_append(mainlist, mainlabel);
+  mainlist = g_list_append(mainlist, mainmessage);
+  mainlist = g_list_append(mainlist, vertadjust);
+  g_signal_connect(mainbutton, "clicked", G_CALLBACK (chat), mainlist);
 
   gtk_widget_show_all(mainwindow);
 }
@@ -66,15 +135,22 @@ static void gui(GtkWidget *widget, gchar *name, gpointer data) {
 int main(int argc, char *argv[]) {
   GtkWidget *initwindow, *initbox,
     *namebox, *namelabel, *nameentry,
+    *firstbox, *firstlabel, *firstentry,
+    *radiobox, *clientradio, *serverradio,
+    *ipbox, *iplabel, *ipentry,
+    *portbox, *portlabel, *portentry,
     *buttonbox, *initbutton;
+  GList *initlist, *radiolist;
+  int *clientcount;
   gboolean tru, lie;
   tru = TRUE;
   lie = FALSE;
-  gchar *name;
+  initlist=NULL; radiolist=NULL;
   
   gtk_init(&argc, &argv);
 
   initwindow = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title(GTK_WINDOW (initwindow), "UI Chat Initialization");
   g_signal_connect(initwindow, "destroy", G_CALLBACK (delete), NULL);
   initbox = gtk_vbox_new(lie, 0);
   gtk_container_add(GTK_CONTAINER (initwindow), initbox);
@@ -85,18 +161,72 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start(GTK_BOX (namebox), namelabel, lie, tru, 0);
   gtk_box_pack_start(GTK_BOX (namebox), nameentry, tru, tru, 0);
 
+  firstbox = gtk_hbox_new(tru, 2);
+  firstlabel = gtk_label_new("First message: ");
+  firstentry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX (firstbox), firstlabel, lie, tru, 0);
+  gtk_box_pack_start(GTK_BOX (firstbox), firstentry, tru, tru, 0);
+
+  radiobox = gtk_hbox_new(tru, 2);
+  serverradio = gtk_radio_button_new_with_label(NULL, "Server");
+  clientradio = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(serverradio), "Client");
+  clientcount=0;
+  gtk_box_pack_start(GTK_BOX (radiobox), clientradio, lie, tru, 0);
+  gtk_box_pack_start(GTK_BOX (radiobox), serverradio, lie, tru, 0);
+
+  ipbox = gtk_hbox_new(tru, 2);
+  iplabel = gtk_label_new("IP Address to connect to: ");
+  ipentry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX (ipbox), iplabel, lie, tru, 0);
+  gtk_box_pack_start(GTK_BOX (ipbox), ipentry, tru, tru, 0);
+
+  portbox = gtk_hbox_new(tru, 2);
+  portlabel = gtk_label_new("Port: ");
+  portentry = gtk_entry_new();
+  gtk_box_pack_start(GTK_BOX (portbox), portlabel, lie, tru, 0);
+  gtk_box_pack_start(GTK_BOX (portbox), portentry, tru, tru, 0);
+
   buttonbox = gtk_hbox_new(tru, 2);
   initbutton = gtk_button_new_with_label("CONNECT!");
   gtk_box_pack_start(GTK_BOX (buttonbox), initbutton, tru, tru, 0);
 
   gtk_box_pack_start(GTK_BOX (initbox), namebox, tru, tru, 0);
+  gtk_box_pack_start(GTK_BOX (initbox), firstbox, tru, tru, 0);
+  gtk_box_pack_start(GTK_BOX (initbox), radiobox, tru, tru, 0);
+  gtk_box_pack_start(GTK_BOX (initbox), ipbox, tru, tru, 0);
+  gtk_box_pack_start(GTK_BOX (initbox), portbox, tru, tru, 0);
   gtk_box_pack_start(GTK_BOX (initbox), buttonbox, tru, tru, 0);
 
-  name = gtk_entry_get_text(GTK_ENTRY (nameentry));
-  g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), name);
-  g_signal_connect(initbutton, "clicked", G_CALLBACK (hide), initwindow);
+  initlist = g_list_append(initlist, initwindow);
+  initlist = g_list_append(initlist, nameentry);
+  initlist = g_list_append(initlist, firstentry);
+  initlist = g_list_append(initlist, portentry);
+  initlist = g_list_append(initlist, clientcount);
+  initlist = g_list_append(initlist, ipentry);
+  g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), initlist);
+
+  /*radiolist = g_list_append*/
+
+  g_signal_connect(serverradio, "toggled", G_CALLBACK (servertog), clientcount);
 
   gtk_widget_show_all(initwindow);
   gtk_main();
   return 0;
+}
+
+static int client(int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen) {
+  int returnvalue;
+  returnvalue = socket(domain, type, protocol);
+  connect(returnvalue, serv_addr, addrlen);
+  return returnvalue;
+}
+
+static int server(int sock, int domain, int type, int protocol, struct sockaddr *serv_addr, int addrlen, int backlog, struct sockaddr_storage client_addr, socklen_t addr_size) {
+  int returnvalue;
+  sock = socket(domain, type, protocol);
+  bind(sock, serv_addr, addrlen);
+  listen(sock, backlog);
+  addr_size = sizeof client_addr;
+  returnvalue = accept(sock, (struct sockaddr *)&client_addr, &addr_size);
+  return returnvalue;
 }
