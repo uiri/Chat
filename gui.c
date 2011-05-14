@@ -40,14 +40,38 @@ static int server(int sock, int domain, int type, int protocol, struct sockaddr 
 }
 
 static gboolean recvdata (GIOChannel *clientio, GIOCondition G_IO_IN, GList *list, gpointer data) {
-  printf("recvdata called\n");
-} 
+  gchar *text, *message;
+  GtkTextIter iter[2];
+  GtkTextBuffer *mainbuffer;
+  GIOChannel *sock;
+  GError **ohgod;
+  int messagesize;
+  gsize *readsize;
 
-static int chat (GtkWidget *widget, GList *list, gpointer data) {
+  mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
+
+  messagesize = 256 * (sizeof message);
+  readsize = &messagesize;
+
+  g_io_channel_read_chars(sock, message, messagesize, readsize, ohgod);
+
+  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
+  gtk_text_buffer_set_text(mainbuffer, text, -1);
+}
+
+static int senddata (GtkWidget *widget, GList *list, gpointer data) {
   gchar *text, *message;
   gdouble clamp;
   GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
+  GIOChannel *sock;
+  GError **ohgod;
+  int messagesize;
+  gsize *readsize;
+  messagesize = 256 * (sizeof message);
+  readsize = &messagesize;
 
   mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
@@ -59,15 +83,10 @@ static int chat (GtkWidget *widget, GList *list, gpointer data) {
   text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
   gtk_entry_set_text(GTK_ENTRY(g_list_nth_data(list, 2)), "");
   gtk_text_buffer_set_text(mainbuffer, text, -1);
+  g_io_channel_write_chars(sock, message, (sizeof message), readsize, ohgod);
 
   clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
   gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
-}
-
-static void servertog(GtkWidget *widget, GList *radiolist, gpointer data) {
-  int clientcount;
-  clientcount=(int)g_list_nth_data(radiolist, 1);
-  printf("%d", clientcount);
 }
 
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
@@ -77,9 +96,10 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   GIOChannel *clientio;
   GList *mainlist;
   gboolean tru, lie;
-  int sendstat, clientcount, backlog;
+  int sendstat, backlog;
+  gboolean isclient;
   backlog=10;
-  clientcount=(int)g_list_nth_data(initlist, 4);
+  isclient=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(g_list_nth_data(initlist, 4)));
   mainlist=NULL;
   tru = TRUE;
   lie = FALSE;
@@ -91,7 +111,7 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   first = g_strconcat(gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 1))), ": ", gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 2))),
                       "\n", NULL);
   port = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 3)));
-  if (clientcount == 0) 
+  if (isclient) 
     ip = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 5)));
 
   /* Begin Berkeley Socket Stuff */
@@ -104,7 +124,7 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   memset(&hints, 0, sizeof(hints));
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
-  if (clientcount == 1) {
+  if (isclient) {
     printf("clientcount is 1");
     getaddrinfo( ip, port, &hints, &res);
   } else {
@@ -112,16 +132,15 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
     getaddrinfo(NULL, port, &hints, &res);
   }
 
-  if (clientcount == 1) {
+  if (isclient) {
     client_sock = client(res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen);
     listencount = 0;
   } else {
     client_sock = server(sock, res->ai_family, res->ai_socktype, res->ai_protocol, res->ai_addr, res->ai_addrlen, backlog, client_addr, addr_size);
     listencount = 1;
   }
-  
+
   clientio = g_io_channel_unix_new(client_sock);
-  g_io_add_watch(clientio, G_IO_IN, recvdata, mainbuffer);
 
   /* Back to your regularly scheduled GUI stuff */
 
@@ -159,7 +178,9 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   mainlist = g_list_append(mainlist, mainlabel);
   mainlist = g_list_append(mainlist, mainmessage);
   mainlist = g_list_append(mainlist, vertadjust);
-  g_signal_connect(mainbutton, "clicked", G_CALLBACK (chat), mainlist);
+  mainlist = g_list_append(mainlist, clientio);
+  g_signal_connect(mainbutton, "clicked", G_CALLBACK (senddata), mainlist);
+  g_io_add_watch(clientio, G_IO_IN, (GIOFunc) recvdata, mainlist);
 
   gtk_widget_show_all(mainwindow);
 }
@@ -173,7 +194,6 @@ int main(int argc, char *argv[]) {
     *portbox, *portlabel, *portentry,
     *buttonbox, *initbutton;
   GList *initlist, *radiolist;
-  int *clientcount;
   gboolean tru, lie;
   tru = TRUE;
   lie = FALSE;
@@ -202,7 +222,6 @@ int main(int argc, char *argv[]) {
   radiobox = gtk_hbox_new(tru, 2);
   serverradio = gtk_radio_button_new_with_label(NULL, "Server");
   clientradio = gtk_radio_button_new_with_label_from_widget(GTK_RADIO_BUTTON(serverradio), "Client");
-  clientcount=0;
   gtk_box_pack_start(GTK_BOX (radiobox), clientradio, lie, tru, 0);
   gtk_box_pack_start(GTK_BOX (radiobox), serverradio, lie, tru, 0);
 
@@ -233,13 +252,9 @@ int main(int argc, char *argv[]) {
   initlist = g_list_append(initlist, nameentry);
   initlist = g_list_append(initlist, firstentry);
   initlist = g_list_append(initlist, portentry);
-  initlist = g_list_append(initlist, clientcount);
+  initlist = g_list_append(initlist, clientradio);
   initlist = g_list_append(initlist, ipentry);
   g_signal_connect(initbutton, "clicked", G_CALLBACK (gui), initlist);
-
-  radiolist = g_list_append(radiolist, ipbox);
-  radiolist = g_list_append(radiolist, clientcount);
-  g_signal_connect(serverradio, "toggled", G_CALLBACK (servertog), radiolist);
 
   gtk_widget_show_all(initwindow);
   gtk_main();
