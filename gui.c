@@ -43,47 +43,65 @@ static gboolean recvdata (GIOChannel *clientio, GIOCondition G_IO_IN, GList *lis
   gchar *text, *message;
   GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
-  GIOChannel *sock;
+  char *buffer;
+  buffer = malloc(256 * sizeof(char));
   GError **ohgod;
   int messagesize;
   gsize *readsize;
+  int *sock = g_list_nth_data(list, 4);
 
   mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
 
-  messagesize = 256 * (sizeof message);
-  readsize = &messagesize;
+  /*messagesize = g_io_channel_get_buffer_size(clientio);
+    readsize = &messagesize;*/
 
-  g_io_channel_read_chars(sock, message, messagesize, readsize, ohgod);
+  /*g_io_channel_read_chars(clientio, message, messagesize, readsize, ohgod);*/
+  recv(*sock, buffer, 256, 0);
 
+  message = buffer;
   text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
   gtk_text_buffer_set_text(mainbuffer, text, -1);
 }
 
 static int senddata (GtkWidget *widget, GList *list, gpointer data) {
-  gchar *text, *message;
+  gchar *text, *message, *recvmessage;
+  char *buffer;
+  buffer = malloc(256 * sizeof(char));
+  char *recv_buffer;
+  recv_buffer = malloc(256 * sizeof(char));
   gdouble clamp;
-  GtkTextIter iter[2];
+  GtkTextIter iter[4];
   GtkTextBuffer *mainbuffer;
-  GIOChannel *sock;
+  int *sock = g_list_nth_data(list, 4);
   GError **ohgod;
   int messagesize;
   gsize *readsize;
-  messagesize = 256 * (sizeof message);
-  readsize = &messagesize;
+  /*messagesize = g_io_channel_get_buffer_size(sock);
+    readsize = &messagesize;*/
 
   mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
 
   message = g_strconcat( gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1))),": ",
-                         gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(list, 2))), "\n", NULL);
+                         gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(list, 2))), "\n", "\0", NULL);
 
   text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
   gtk_entry_set_text(GTK_ENTRY(g_list_nth_data(list, 2)), "");
   gtk_text_buffer_set_text(mainbuffer, text, -1);
-  g_io_channel_write_chars(sock, message, (sizeof message), readsize, ohgod);
+  /*g_io_channel_write_chars(sock, message, messagesize, readsize, ohgod);*/
+  buffer = message;
+  send(*sock, buffer, 256, 0);
+
+  recv(*sock, recv_buffer, 256, 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[2], 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[3], -1);
+
+  recvmessage = recv_buffer;
+  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), recvmessage, NULL);
+  gtk_text_buffer_set_text(mainbuffer, text, -1);
 
   clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
   gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
@@ -92,12 +110,15 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   GtkWidget *mainwindow, *mainbox, *mainscroll, *mainbutton, *mainhbox, *mainview, *mainmessage, *mainlabel;
   GtkTextBuffer *mainbuffer;
+  /*GtkTextIter iter[2];*/
   GtkAdjustment *vertadjust;
   GIOChannel *clientio;
   GList *mainlist;
   gboolean tru, lie;
   int sendstat, backlog;
   gboolean isclient;
+  /*  char *buffer;
+      buffer = malloc(256 * sizeof(char));*/
   backlog=10;
   isclient=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(g_list_nth_data(initlist, 4)));
   mainlist=NULL;
@@ -125,7 +146,6 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   hints.ai_family = AF_UNSPEC;
   hints.ai_socktype = SOCK_STREAM;
   if (isclient) {
-    printf("clientcount is 1");
     getaddrinfo( ip, port, &hints, &res);
   } else {
     hints.ai_flags = AI_PASSIVE;
@@ -174,13 +194,21 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (mainscroll), 1, 1);
   gtk_text_buffer_set_text(mainbuffer, first, -1);
 
+  /*  recv(client_sock, buffer, 256, 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
+
+  message = buffer;
+  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
+  gtk_text_buffer_set_text(mainbuffer, text, -1);*/
+
   mainlist = g_list_append(mainlist, mainview);
   mainlist = g_list_append(mainlist, mainlabel);
   mainlist = g_list_append(mainlist, mainmessage);
   mainlist = g_list_append(mainlist, vertadjust);
-  mainlist = g_list_append(mainlist, clientio);
+  mainlist = g_list_append(mainlist, &client_sock);
   g_signal_connect(mainbutton, "clicked", G_CALLBACK (senddata), mainlist);
-  g_io_add_watch(clientio, G_IO_IN, (GIOFunc) recvdata, mainlist);
+  /*g_io_add_watch(clientio, G_IO_IN, (GIOFunc) recvdata, mainlist);*/
 
   gtk_widget_show_all(mainwindow);
 }
