@@ -35,11 +35,6 @@ def newmessage(buffer, message, name)
   $socket.send(sendmessage, 0)
   $mainbuffer.set_text(buffer + sendmessage + "\n")
   $mainmessage.set_text('')
-#  Thread.new {
-#    buffer = $mainbuffer.text
-#    recvmessage = $socket.recv(256)
-#    $mainbuffer.set_text(buffer + recvmessage + "\n")
-#  }
 end
 
 initwindow = Gtk::Window.new
@@ -52,12 +47,6 @@ namelabel = Gtk::Label.new('Your name:')
 nameentry = Gtk::Entry.new
 namebox.pack_start(namelabel, false, true, 0)
 namebox.pack_start(nameentry, true, true, 0)
-
-#firstbox = Gtk::HBox.new(true, 2)
-#firstlabel = Gtk::Label.new('First message:')
-#firstentry = Gtk::Entry.new
-#firstbox.pack_start(firstlabel, false, true, 0)
-#firstbox.pack_start(firstentry, true, true, 0)
 
 radiobox = Gtk::HBox.new(true, 2)
 serverradio = Gtk::RadioButton.new("Server")
@@ -82,7 +71,6 @@ initbutton = Gtk::Button.new('CONNECT!')
 buttonbox.pack_start(initbutton, true, true, 0)
 
 initbox.pack_start(namebox, true, true, 0)
-#initbox.pack_start(firstbox, true, true, 0)
 initbox.pack_start(radiobox, true, true, 0)
 initbox.pack_start(portbox, true, true, 0)
 initbox.pack_start(ipbox, true, true, 0)
@@ -118,7 +106,7 @@ initbutton.signal_connect( "clicked" ) do
   end
 
   $mainmessage.signal_connect( "activate" ) do
-    newmessage($mainbuffer.text, $mainmessage.text, $name)
+    newmessage($mainbuffer.text, $mainmessage.text, name)
   end
 
   mainwindow.add(mainbox)
@@ -134,9 +122,9 @@ initbutton.signal_connect( "clicked" ) do
   mainwindow.show_all
   Thread.new {
     while 1
+      recvmessage = $socket.recv(256) + "\n"
       buffer = $mainbuffer.text
-      recvmessage = $socket.recv(256)
-      $mainbuffer.set_text(buffer + recvmessage + "\n")
+      $mainbuffer.set_text(buffer + recvmessage)
     end
   }
 end
