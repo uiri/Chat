@@ -35,12 +35,11 @@ def newmessage(buffer, message, name)
   $socket.send(sendmessage, 0)
   $mainbuffer.set_text(buffer + sendmessage + "\n")
   $mainmessage.set_text('')
-  $mainmessage.set_text('')
-  Thread.new {
-    buffer = $mainbuffer.text
-    recvmessage = $socket.recv(256)
-    $mainbuffer.set_text(buffer + recvmessage + "\n")
-  }
+#  Thread.new {
+#    buffer = $mainbuffer.text
+#    recvmessage = $socket.recv(256)
+#    $mainbuffer.set_text(buffer + recvmessage + "\n")
+#  }
 end
 
 initwindow = Gtk::Window.new
@@ -115,7 +114,7 @@ initbutton.signal_connect( "clicked" ) do
   end
 
   mainbutton.signal_connect( "clicked" ) do
-    newmessage($mainbuffer.text, $mainmessage.text, $name)
+    newmessage($mainbuffer.text, $mainmessage.text, name)
   end
 
   $mainmessage.signal_connect( "activate" ) do
@@ -134,9 +133,11 @@ initbutton.signal_connect( "clicked" ) do
   mainbox.pack_start(mainhbox, false, false, 0)
   mainwindow.show_all
   Thread.new {
-    buffer = $mainbuffer.text
-    recvmessage = $socket.recv(256)
-    $mainbuffer.set_text(buffer + recvmessage + "\n")
+    while 1
+      buffer = $mainbuffer.text
+      recvmessage = $socket.recv(256)
+      $mainbuffer.set_text(buffer + recvmessage + "\n")
+    end
   }
 end
 
