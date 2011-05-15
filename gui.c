@@ -15,8 +15,12 @@ along with UI.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <gtk/gtk.h>
 #include <netdb.h>
+#include <netinet/in.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static void delete(GtkWidget *widget, gpointer data) {
   gtk_main_quit();
@@ -72,7 +76,7 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
   char *recv_buffer;
   recv_buffer = malloc(256 * sizeof(char));
   gdouble clamp;
-  GtkTextIter iter[4];
+  GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
   int *sock = g_list_nth_data(list, 4);
   GError **ohgod;
@@ -95,16 +99,21 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
   buffer = message;
   send(*sock, buffer, 256, 0);
 
+  GtkTextIter recviter[2];
+
   recv(*sock, recv_buffer, 256, 0);
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[2], 0);
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[3], -1);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &recviter[0], 0);
+  gtk_text_buffer_get_iter_at_offset(mainbuffer, &recviter[1], -1);
 
-  recvmessage = recv_buffer;
-  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), recvmessage, NULL);
-  gtk_text_buffer_set_text(mainbuffer, text, -1);
+  if (recv_buffer != NULL) {
 
-  clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
-  gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
+    /* *recvmessage = *recv_buffer;*/
+    text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &recviter[0], &recviter[1], TRUE), recv_buffer, NULL);
+    gtk_text_buffer_set_text(mainbuffer, text, -1);
+
+    clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
+    gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
+  }
 }
 
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
@@ -120,20 +129,17 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   /*  char *buffer;
       buffer = malloc(256 * sizeof(char));*/
   backlog=10;
-  isclient=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(g_list_nth_data(initlist, 4)));
+  isclient=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(g_list_nth_data(initlist, 3)));
   mainlist=NULL;
   tru = TRUE;
   lie = FALSE;
   const gchar *port, *ip;
   port = malloc(10 * sizeof(char));
   ip = malloc(20 * sizeof(char));
-  const gchar *first;
   sendstat = 0;
-  first = g_strconcat(gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 1))), ": ", gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 2))),
-                      "\n", NULL);
-  port = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 3)));
+  port = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 2)));
   if (isclient) 
-    ip = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 5)));
+    ip = gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(initlist, 4)));
 
   /* Begin Berkeley Socket Stuff */
 
@@ -192,7 +198,7 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   gtk_text_view_set_wrap_mode(GTK_TEXT_VIEW (mainview), GTK_WRAP_WORD_CHAR);
   gtk_container_add(GTK_CONTAINER (mainscroll), mainview);
   gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW (mainscroll), 1, 1);
-  gtk_text_buffer_set_text(mainbuffer, first, -1);
+  /*gtk_text_buffer_set_text(mainbuffer, first, -1);*/
 
   /*  recv(client_sock, buffer, 256, 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
@@ -216,7 +222,7 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
 int main(int argc, char *argv[]) {
   GtkWidget *initwindow, *initbox,
     *namebox, *namelabel, *nameentry,
-    *firstbox, *firstlabel, *firstentry,
+ /* *firstbox, *firstlabel, *firstentry,*/
     *radiobox, *clientradio, *serverradio,
     *ipbox, *iplabel, *ipentry,
     *portbox, *portlabel, *portentry,
@@ -241,11 +247,11 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start(GTK_BOX (namebox), namelabel, lie, tru, 0);
   gtk_box_pack_start(GTK_BOX (namebox), nameentry, tru, tru, 0);
 
-  firstbox = gtk_hbox_new(tru, 2);
+  /*firstbox = gtk_hbox_new(tru, 2);
   firstlabel = gtk_label_new("First message: ");
   firstentry = gtk_entry_new();
   gtk_box_pack_start(GTK_BOX (firstbox), firstlabel, lie, tru, 0);
-  gtk_box_pack_start(GTK_BOX (firstbox), firstentry, tru, tru, 0);
+  gtk_box_pack_start(GTK_BOX (firstbox), firstentry, tru, tru, 0);*/
 
   radiobox = gtk_hbox_new(tru, 2);
   serverradio = gtk_radio_button_new_with_label(NULL, "Server");
@@ -270,7 +276,7 @@ int main(int argc, char *argv[]) {
   gtk_box_pack_start(GTK_BOX (buttonbox), initbutton, tru, tru, 0);
 
   gtk_box_pack_start(GTK_BOX (initbox), namebox, tru, tru, 0);
-  gtk_box_pack_start(GTK_BOX (initbox), firstbox, tru, tru, 0);
+  /*gtk_box_pack_start(GTK_BOX (initbox), firstbox, tru, tru, 0);*/
   gtk_box_pack_start(GTK_BOX (initbox), radiobox, tru, tru, 0);
   gtk_box_pack_start(GTK_BOX (initbox), ipbox, tru, tru, 0);
   gtk_box_pack_start(GTK_BOX (initbox), portbox, tru, tru, 0);
@@ -278,7 +284,7 @@ int main(int argc, char *argv[]) {
 
   initlist = g_list_append(initlist, initwindow);
   initlist = g_list_append(initlist, nameentry);
-  initlist = g_list_append(initlist, firstentry);
+  /*initlist = g_list_append(initlist, firstentry);*/
   initlist = g_list_append(initlist, portentry);
   initlist = g_list_append(initlist, clientradio);
   initlist = g_list_append(initlist, ipentry);
