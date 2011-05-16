@@ -22,19 +22,90 @@ def delete
   false
 end
 
-def newmessage(buffer, message, name)
-  if message =~ /^\/me/
-    message = message.gsub(/^\/me/, '')
-    sendmessage = "*" + name + message
-  elsif message == '/quit'
-    sendmessage = "QUIT"
-    delete
-  else
-    sendmessage = name + ": " + message
+def groupchat (server, sockets)
+  socket = sockets[sockets.length]
+  socket = server.accept
+  $introarray.each{|initmessage|
+    Thread.new { socket.send(initmessage, 0) }
+  }
+  sockets.push(socket)
+  Thread.new { recvchat(socket) }
+  Thread.new { groupchat(server, sockets) }
+end
+
+def recvchat (socket)
+  while 1
+    recvmessage = socket.recv(256)
+    if recvmessage =~ /^You /
+      $introarray.push(recvmessage)
+    else
+      recvmessage = recvmessage + "\n"
+    end
+    if recvmessage =~ /QUIT/
+      removedex = $sockets.index(socket) + 1
+      $introarray.delete($introarray[removedex])
+      $sockets.delete(socket)
+      message = recvmessage.gsub(/QUIT\n$/, '').gsub(/\:/, '')
+      buffer = $mainbuffer.text
+      recvmessage = message + "has left the chat"
+      $mainbuffer.set_text(buffer + recvmessage + "\n")
+      $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
+      if $sockets == []
+        buffer = $mainbuffer.text
+        $mainbuffer.set_text(buffer + "No one is left to communicate with. Hit enter or the send button to close this program.\n")
+      else
+        $sockets.each {|sock|
+          if sock != socket
+            sock.send(recvmessage, 0)
+          end
+        }
+      end
+      break
+    else
+      buffer = $mainbuffer.text
+      $mainbuffer.set_text(buffer + recvmessage)
+      $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
+      $sockets.each {|sock|
+        if sock != socket
+          unless recvmessage =~ /^You /
+            recvmessage = recvmessage.gsub(/\n/, '')  
+          end
+          sock.send(recvmessage, 0)
+        end
+      }
+    end
   end
-  $socket.send(sendmessage, 0)
-  $mainbuffer.set_text(buffer + sendmessage + "\n")
-  $mainmessage.set_text('')
+end
+
+def newmessage(buffer, message, name, sockets)
+  if message == '/quit'
+    sendmessage = name + ": QUIT"
+    if sockets != []
+      sockets.each {|socket|
+        socket.send(sendmessage, 0)
+      }
+    end
+    $mainwindow.destroy
+    Gtk.main_quit
+  else
+    if message =~ /^\/me/
+      message = message.gsub(/^\/me/, '')
+      sendmessage = "*" + name + message
+    else
+      sendmessage = name + ": " + message
+    end
+    if sockets != []
+      sockets.each {|socket|
+        Thread.new { socket.send(sendmessage, 0) }
+      }
+      $mainbuffer.set_text(buffer + sendmessage + "\n")
+      $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
+      $mainmessage.set_text('')
+    else
+      $mainwindow.destroy
+      Gtk.main_quit
+    end
+  end
 end
 
 initwindow = Gtk::Window.new
@@ -78,55 +149,56 @@ initbox.pack_start(buttonbox, true, true, 0)
 
 initbutton.signal_connect( "clicked" ) do
   name = nameentry.text
+  $introarray = []
   port = portentry.text
   ip = ipentry.text
   isclient = clientradio.active?
+  $sockets = []
   initwindow.destroy
-  mainwindow = Gtk::Window.new('RubyChat')
-  mainwindow.signal_connect('delete_event') do delete end
-  mainwindow.set_default_size(500,500)
-  mainwindow.show
+  $mainwindow = Gtk::Window.new('RubyChat')
+  $mainwindow.signal_connect('delete_event') do delete end
+  $mainwindow.set_default_size(500,500)
+  $mainwindow.show
   mainbox = Gtk::VBox.new(false, 0)
-  mainscroll = Gtk::ScrolledWindow.new
+  $mainscroll = Gtk::ScrolledWindow.new
   $mainbuffer = Gtk::TextBuffer.new
   mainview = Gtk::TextView.new($mainbuffer)
   mainhbox = Gtk::HBox.new(false, 0)
   $mainmessage = Gtk::Entry.new
   mainbutton = Gtk::Button.new('Send')
+  message = "You are now talking with " + name + "\n"
 
   if isclient == true
-    $socket = TCPSocket.new(ip, port)
+    $sockets[0] = TCPSocket.new(ip, port)
   else
     serv = TCPServer.new(port)
-    $socket = serv.accept
+    $sockets[0] = serv.accept
+    Thread.new { groupchat(serv, $sockets) }
   end
 
+  $introarray.push(message)
+  $sockets[0].send(message, 0)
+  Thread.new { recvchat($sockets[0]) }
+
   mainbutton.signal_connect( "clicked" ) do
-    newmessage($mainbuffer.text, $mainmessage.text, name)
+    newmessage($mainbuffer.text, $mainmessage.text, name, $sockets)
   end
 
   $mainmessage.signal_connect( "activate" ) do
-    newmessage($mainbuffer.text, $mainmessage.text, name)
+    newmessage($mainbuffer.text, $mainmessage.text, name, $sockets)
   end
 
-  mainwindow.add(mainbox)
-  mainwindow.set_resizable(true)
+  $mainwindow.add(mainbox)
+  $mainwindow.set_resizable(true)
   mainview.set_editable(false)
   mainview.wrap_mode = Gtk::TextTag::WRAP_WORD_CHAR
   mainhbox.pack_start($mainmessage, true, true, 0)
   mainhbox.pack_start(mainbutton, false, false, 0)
-  mainscroll.add(mainview)
-  mainscroll.set_policy(1,1)
-  mainbox.pack_start(mainscroll, true, true, 0)
+  $mainscroll.add(mainview)
+  $mainscroll.set_policy(1,1)
+  mainbox.pack_start($mainscroll, true, true, 0)
   mainbox.pack_start(mainhbox, false, false, 0)
-  mainwindow.show_all
-  Thread.new {
-    while 1
-      recvmessage = $socket.recv(256) + "\n"
-      buffer = $mainbuffer.text
-      $mainbuffer.set_text(buffer + recvmessage)
-    end
-  }
+  $mainwindow.show_all
 end
 
 initwindow.show_all

@@ -106,7 +106,6 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &recviter[1], -1);
 
   if (recv_buffer != NULL) {
-
     /* *recvmessage = *recv_buffer;*/
     text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &recviter[0], &recviter[1], TRUE), recv_buffer, NULL);
     gtk_text_buffer_set_text(mainbuffer, text, -1);
