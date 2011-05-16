@@ -43,8 +43,29 @@ static int server(int sock, int domain, int type, int protocol, struct sockaddr 
   return returnvalue;
 }
 
-static gboolean recvdata (GIOChannel *clientio, GIOCondition G_IO_IN, GList *list, gpointer data) {
-  gchar *text, *message;
+static void *recvdata (GList *list) {
+  char *recvmessage;
+  recvmessage = malloc(256 * sizeof(char));
+  int *sock;
+  sock = g_list_nth_data(list, 0);
+  GtkTextBuffer *mainbuffer;
+  mainbuffer = g_list_nth_data(list, 1);  
+  while (1) {
+    GtkTextIter iter[2];
+    char *text;
+    text = malloc(25900 * sizeof(char));
+    recv(*sock, recvmessage, 256, 0);
+    /* If else based on whether it is info or message */
+    strcat(recvmessage, "\n");
+    gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
+    gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
+    text = gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE);
+    strcat(text, recvmessage);
+    gtk_text_buffer_set_text(mainbuffer, text, -1);
+  }
+
+
+  /*gchar *text, *message;
   GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
   char *buffer;
@@ -59,60 +80,72 @@ static gboolean recvdata (GIOChannel *clientio, GIOCondition G_IO_IN, GList *lis
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
 
   /*messagesize = g_io_channel_get_buffer_size(clientio);
-    readsize = &messagesize;*/
-
-  /*g_io_channel_read_chars(clientio, message, messagesize, readsize, ohgod);*/
-  recv(*sock, buffer, 256, 0);
-
+  readsize = &messagesize;*/
+  /*recv(*sock, buffer, 256, 0);
+    
   message = buffer;
   text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
-  gtk_text_buffer_set_text(mainbuffer, text, -1);
+  gtk_text_buffer_set_text(mainbuffer, text, -1);*/
 }
 
 static int senddata (GtkWidget *widget, GList *list, gpointer data) {
-  gchar *text, *message, *recvmessage;
-  char *buffer;
+  char *text, *name, *sendmessage, *message, *mebuffer, *buffer;
+  text = malloc(25900 * sizeof(char));
+  name = malloc(32 * sizeof(char));
+  sendmessage = malloc(300 * sizeof(char));
+  message = malloc(256 * sizeof(char));
+  mebuffer = malloc(256 * sizeof(char));
   buffer = malloc(256 * sizeof(char));
-  char *recv_buffer;
-  recv_buffer = malloc(256 * sizeof(char));
+  size_t mematch;
+  mematch = (3 * sizeof (char));
+  /*char *recv_buffer;
+    recv_buffer = malloc(256 * sizeof(char));*/
   gdouble clamp;
   GtkTextIter iter[2];
   GtkTextBuffer *mainbuffer;
   int *sock = g_list_nth_data(list, 4);
-  GError **ohgod;
-  int messagesize;
-  gsize *readsize;
-  /*messagesize = g_io_channel_get_buffer_size(sock);
-    readsize = &messagesize;*/
+ 
 
+  message = gtk_entry_buffer_get_text(gtk_entry_get_buffer(GTK_ENTRY(g_list_nth_data(list, 2))));
+  name = gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1)));
   mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
+  buffer = gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
 
-  message = g_strconcat( gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1))),": ",
+  /*sendmessage = g_strconcat( gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1))),": ",
                          gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(list, 2))), "\n", "\0", NULL);
 
-  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), message, NULL);
+  text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE), sendmessage, NULL);
   gtk_entry_set_text(GTK_ENTRY(g_list_nth_data(list, 2)), "");
   gtk_text_buffer_set_text(mainbuffer, text, -1);
-  /*g_io_channel_write_chars(sock, message, messagesize, readsize, ohgod);*/
-  buffer = message;
-  send(*sock, buffer, 256, 0);
+  send(*sock, buffer, 256, 0);*/
 
-  GtkTextIter recviter[2];
-
-  recv(*sock, recv_buffer, 256, 0);
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &recviter[0], 0);
-  gtk_text_buffer_get_iter_at_offset(mainbuffer, &recviter[1], -1);
-
-  if (recv_buffer != NULL) {
-    /* *recvmessage = *recv_buffer;*/
-    text = g_strconcat(gtk_text_buffer_get_text(mainbuffer, &recviter[0], &recviter[1], TRUE), recv_buffer, NULL);
-    gtk_text_buffer_set_text(mainbuffer, text, -1);
-
-    clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
-    gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
+  /*if (message == "/quit") {
+    strcpy(sendmessage, name);
+    strcat(sendmessage, ": QUIT");
+    /*     if for when there are no sockets left 
+    } else {*/
+  if ((strncmp(message, "/me", mematch)) == 0) {
+    mebuffer = strtok(message, " ");
+    mebuffer = strtok(NULL, "");
+    message = "";
+    strcpy(sendmessage, "*");
+    strcat(sendmessage, name);
+    strcat(sendmessage, mebuffer);
+  } else {
+    strcpy(sendmessage, name);
+    strcat(sendmessage, ": ");
+    strcat(sendmessage, message);
   }
+  send(*sock, sendmessage, 256, 0);
+  strcpy(text, buffer);
+  strcat(text, sendmessage);
+  strcat(text, "\n");
+  gtk_text_buffer_set_text(mainbuffer, text, -1);
+
+  clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
+  gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
 }
 
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
@@ -121,15 +154,16 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   /*GtkTextIter iter[2];*/
   GtkAdjustment *vertadjust;
   GIOChannel *clientio;
-  GList *mainlist;
+  GList *mainlist, *recvlist;
   gboolean tru, lie;
+  pthread_t recvthread;
   int sendstat, backlog;
   gboolean isclient;
   /*  char *buffer;
       buffer = malloc(256 * sizeof(char));*/
   backlog=10;
   isclient=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(g_list_nth_data(initlist, 3)));
-  mainlist=NULL;
+  mainlist=NULL; recvlist=NULL;
   tru = TRUE;
   lie = FALSE;
   const gchar *port, *ip;
@@ -165,7 +199,9 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
     listencount = 1;
   }
 
-  clientio = g_io_channel_unix_new(client_sock);
+  recvlist = g_list_append(recvlist, &client_sock);
+  recvlist = g_list_append(recvlist, mainbuffer);
+  pthread_create(&recvthread, NULL, recvdata, recvlist);
 
   /* Back to your regularly scheduled GUI stuff */
 
@@ -213,7 +249,6 @@ static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
   mainlist = g_list_append(mainlist, vertadjust);
   mainlist = g_list_append(mainlist, &client_sock);
   g_signal_connect(mainbutton, "clicked", G_CALLBACK (senddata), mainlist);
-  /*g_io_add_watch(clientio, G_IO_IN, (GIOFunc) recvdata, mainlist);*/
 
   gtk_widget_show_all(mainwindow);
 }
