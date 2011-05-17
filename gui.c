@@ -109,9 +109,9 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
   message = gtk_entry_buffer_get_text(gtk_entry_get_buffer(GTK_ENTRY(g_list_nth_data(list, 2))));
   name = gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1)));
   mainbuffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(g_list_nth_data(list, 0)));
-  buffer = gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[0], 0);
   gtk_text_buffer_get_iter_at_offset(mainbuffer, &iter[1], -1);
+  buffer = gtk_text_buffer_get_text(mainbuffer, &iter[0], &iter[1], TRUE);
 
   /*sendmessage = g_strconcat( gtk_label_get_text(GTK_LABEL(g_list_nth_data(list, 1))),": ",
                          gtk_entry_get_text(GTK_ENTRY(g_list_nth_data(list, 2))), "\n", "\0", NULL);
@@ -146,6 +146,7 @@ static int senddata (GtkWidget *widget, GList *list, gpointer data) {
 
   clamp = gtk_adjustment_get_upper((g_list_nth_data(list, 3)));
   gtk_adjustment_set_value((g_list_nth_data(list, 3)), clamp);
+  gtk_entry_set_text(GTK_ENTRY(g_list_nth_data(list, 2)), "");
 }
 
 static void gui(GtkWidget *widget, GList *initlist, gpointer data) {
