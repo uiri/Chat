@@ -22,6 +22,13 @@ along with UI.  If not, see <http://www.gnu.org/licenses/>. */
 #include <netdb.h>
 #include <unistd.h>
 
+/*void groupchat (int server, int sockets, int length, socklen_t addr_size, struct sockaddr_storage client_addr) {
+  pthread_t groupthread;
+  pthread_t recvagain;
+  sockets[length] = accept(sever, (struct sockaddr *)&client_addr, &addr_size);
+  pthread_create(&groupthread, NULL,
+} */
+
 int main(int argc, char *argv[]) {
   //declarations
   struct sockaddr_storage client_addr;

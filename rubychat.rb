@@ -49,10 +49,12 @@ def recvchat (socket)
       buffer = $mainbuffer.text
       recvmessage = message + "has left the chat"
       $mainbuffer.set_text(buffer + recvmessage + "\n")
+      $logfile.write(recvmessage + "\n")
       $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
       if $sockets == []
         buffer = $mainbuffer.text
         $mainbuffer.set_text(buffer + "No one is left to communicate with. Hit enter or the send button to close this program.\n")
+        $logfile.write("No one is left to communicate with. Hit enter or the send button to close this program.\n")
       else
         $sockets.each {|sock|
           if sock != socket
@@ -64,6 +66,7 @@ def recvchat (socket)
     else
       buffer = $mainbuffer.text
       $mainbuffer.set_text(buffer + recvmessage)
+      $logfile.write(recvmessage)
       $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
       $sockets.each {|sock|
         if sock != socket
@@ -99,6 +102,7 @@ def newmessage(buffer, message, name, sockets)
         Thread.new { socket.send(sendmessage, 0) }
       }
       $mainbuffer.set_text(buffer + sendmessage + "\n")
+      $logfile.write(sendmessage)
       $mainscroll.vadjustment.set_value($mainscroll.vadjustment.upper)
       $mainmessage.set_text('')
     else
@@ -179,6 +183,12 @@ initbutton.signal_connect( "clicked" ) do
   $introarray.push(message)
   $sockets[0].send(message, 0)
   Thread.new { recvchat($sockets[0]) }
+
+  t = Time.now
+  $logfile = File.new(Dir.home + "rubychat-" + name + t.year + "-" + t.month + "-" + t.day + ".log", "a")
+  if $logfile
+    $mainbuffer.set_text_("Logging...")
+  end
 
   mainbutton.signal_connect( "clicked" ) do
     newmessage($mainbuffer.text, $mainmessage.text, name, $sockets)
